@@ -1265,11 +1265,15 @@
         
         // Initialize the app
         document.addEventListener('DOMContentLoaded', () => {
+            // Remove focus from any element to ensure scrolling works on load
+            setTimeout(() => {
+                if (document.activeElement && typeof document.activeElement.blur === 'function') {
+                    document.activeElement.blur();
+                }
+            }, 0);
             initRatingStars();
-            
             // Check for URL backup first
             const restored = loadFromUrlBackup();
-            
             // If no URL backup was loaded, check for localStorage
             if (!restored) {
                 // Check if we might have lost data (localStorage supported but empty)
@@ -1282,7 +1286,6 @@
                     sessionStorage.setItem('hasVisited', 'true');
                 }
             }
-            
             sortAndRenderFavorites();
         });
         
