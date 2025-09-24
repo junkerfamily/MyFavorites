@@ -1,0 +1,14 @@
+# Node.js
+node_modules/
+.env
+npm-debug.log
+yarn-error.log
+dist/
+build/
+.DS_Store
+*.local
+coverage/
+# VSCode
+.vscode/
+# OS
+Thumbs.db
