@@ -1137,15 +1137,39 @@
         
         // Import favorites from JSON file
         function importFavorites() {
-            alert('📁 A file picker will open. Navigate to your Downloads folder and select "my-favorites-backup.json".');
-            
+            // Show a temporary message instead of alert to avoid blocking
+            const message = document.createElement('div');
+            message.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: #667eea;
+                color: white;
+                padding: 20px;
+                border-radius: 10px;
+                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+                z-index: 10001;
+                text-align: center;
+                font-size: 16px;
+            `;
+            message.innerHTML = '📁 Navigate to your Downloads folder and select "my-favorites-backup.json".<br><br><button onclick="this.parentElement.remove(); openFilePicker();" style="background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 16px; border-radius: 5px; cursor: pointer; margin-top: 10px;">Open File Picker</button>';
+            document.body.appendChild(message);
+        }
+        
+        function openFilePicker() {
             const input = document.createElement('input');
             input.type = 'file';
             input.accept = '.json';
+            input.style.display = 'none'; // Hide the input element
+            document.body.appendChild(input); // Attach to DOM
             
             input.onchange = function(event) {
                 const file = event.target.files[0];
-                if (!file) return;
+                if (!file) {
+                    document.body.removeChild(input); // Clean up
+                    return;
+                }
                 
                 const reader = new FileReader();
                 reader.onload = function(e) {
@@ -1177,11 +1201,14 @@
                         
                     } catch (error) {
                         alert('Error importing file: ' + error.message);
+                    } finally {
+                        document.body.removeChild(input); // Clean up
                     }
                 };
                 reader.readAsText(file);
             };
             
+            // Trigger the file picker
             input.click();
         }
         
