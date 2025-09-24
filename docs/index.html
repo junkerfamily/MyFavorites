@@ -353,6 +353,7 @@
     </style>
 </head>
 <body>
+    <!-- FULL BODY CONTENT FROM index.html STARTS HERE -->
     <div class="container">
         <div class="header">
             <h1>⭐ My Favorites</h1>
@@ -369,7 +370,86 @@
                 <button class="btn btn-small" onclick="createBackupUrl()">🔗 Backup Link</button>
             </div>
         </div>
-        ...existing code from main index.html body...
+        <div class="add-section hidden" id="add-section">
+            <div class="form-group">
+                <label for="title">Title</label>
+                <input type="text" id="title" placeholder="Enter a title for your favorite">
+            </div>
+            <div class="form-group">
+                <label for="url">URL</label>
+                <div class="url-input-container">
+                    <input type="url" id="url" placeholder="https://example.com">
+                    <button type="button" class="btn btn-small github-btn" onclick="toggleGitHubMode()" title="GitHub Repository Mode">
+                        <span id="github-icon">🐱</span>
+                    </button>
+                </div>
+                <div id="github-mode" class="github-mode hidden">
+                    <input type="text" id="github-repo" placeholder="username/repository (e.g., junkerfamily/MyFavorites)">
+                    <div class="github-buttons">
+                        <button type="button" class="btn btn-small" onclick="fetchGitHubRepo()">Fetch Info</button>
+                        <button type="button" class="btn btn-small" onclick="searchUserRepos()">Browse User Repos</button>
+                        <button type="button" class="btn btn-small" onclick="searchAllUserRepos()" title="Try all repository types">All Repos</button>
+                    </div>
+                    <input type="text" id="repo-filter" class="hidden" placeholder="Filter repositories..." oninput="filterRepos()">
+                    <div id="repo-list" class="repo-list hidden"></div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Rating (1-5 stars)</label>
+                <div class="rating-container">
+                    <div class="stars" id="rating-stars">
+                        <span class="star" data-rating="1">★</span>
+                        <span class="star" data-rating="2">★</span>
+                        <span class="star" data-rating="3">★</span>
+                        <span class="star" data-rating="4">★</span>
+                        <span class="star" data-rating="5">★</span>
+                    </div>
+                    <span id="rating-text">Click to rate</span>
+                </div>
+            </div>
+            <button class="btn" onclick="addFavorite()">Add Favorite</button>
+            <button class="btn btn-danger" onclick="toggleAddForm()">Cancel</button>
+        </div>
+        <div class="favorites-list" id="favorites-list">
+            <div class="empty-state">
+                <h3>No favorites yet</h3>
+                <p>Add your first favorite above to get started!</p>
+            </div>
+        </div>
     </div>
+    <!-- Edit Modal -->
+    <div class="modal" id="edit-modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeEditModal()">&times;</span>
+            <h3>Edit Favorite</h3>
+            <div class="form-group">
+                <label for="edit-title">Title</label>
+                <input type="text" id="edit-title">
+            </div>
+            <div class="form-group">
+                <label for="edit-url">URL</label>
+                <input type="url" id="edit-url">
+            </div>
+            <div class="form-group">
+                <label>Rating</label>
+                <div class="rating-container">
+                    <div class="stars" id="edit-rating-stars">
+                        <span class="star" data-rating="1">★</span>
+                        <span class="star" data-rating="2">★</span>
+                        <span class="star" data-rating="3">★</span>
+                        <span class="star" data-rating="4">★</span>
+                        <span class="star" data-rating="5">★</span>
+                    </div>
+                    <span id="edit-rating-text">Click to rate</span>
+                </div>
+            </div>
+            <button class="btn" onclick="saveEdit()">Save Changes</button>
+            <button class="btn btn-danger" onclick="closeEditModal()">Cancel</button>
+        </div>
+    </div>
+    <script>
+        // ...full app JavaScript from index.html...
+    </script>
+    <!-- FULL BODY CONTENT FROM index.html ENDS HERE -->
 </body>
 </html>
