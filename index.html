@@ -50,6 +50,17 @@
             padding: 20px;
             border-bottom: 1px solid #eee;
             background: #fafafa;
+            transition: all 0.3s ease;
+        }
+        
+        .add-section.hidden {
+            display: none;
+        }
+        
+        #toggle-form-btn {
+            margin-top: 15px;
+            font-size: 14px;
+            padding: 8px 16px;
         }
         
         .form-group {
@@ -275,9 +286,10 @@
         <div class="header">
             <h1>⭐ My Favorites</h1>
             <p>Keep track of your favorite project URLs and files</p>
+            <button class="btn" id="toggle-form-btn" onclick="toggleAddForm()">➕ Add New Favorite</button>
         </div>
         
-        <div class="add-section">
+        <div class="add-section hidden" id="add-section">
             <div class="form-group">
                 <label for="title">Title</label>
                 <input type="text" id="title" placeholder="Enter a title for your favorite">
@@ -303,6 +315,7 @@
             </div>
             
             <button class="btn" onclick="addFavorite()">Add Favorite</button>
+            <button class="btn btn-danger" onclick="toggleAddForm()">Cancel</button>
         </div>
         
         <div class="favorites-list" id="favorites-list">
@@ -525,7 +538,22 @@
         function deleteFavorite(id) {
             if (confirm('Are you sure you want to delete this favorite?')) {
                 favorites = favorites.filter(f => f.id !== id);
+                saveFavorites();
                 renderFavorites();
+            }
+        }
+        
+        function toggleAddForm() {
+            const addSection = document.getElementById('add-section');
+            const toggleBtn = document.getElementById('toggle-form-btn');
+            
+            if (addSection.classList.contains('hidden')) {
+                addSection.classList.remove('hidden');
+                toggleBtn.textContent = '❌ Hide Form';
+            } else {
+                addSection.classList.add('hidden');
+                toggleBtn.textContent = '➕ Add New Favorite';
+                clearForm(); // Clear form when hiding
             }
         }
         
