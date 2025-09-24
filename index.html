@@ -698,12 +698,14 @@
         
         // GitHub integration functions
         let isGitHubMode = false;
+        let lastGitHubUsername = '';
         
         function toggleGitHubMode() {
             const githubMode = document.getElementById('github-mode');
             const githubIcon = document.getElementById('github-icon');
             const githubBtn = document.querySelector('.github-btn');
             const urlInput = document.getElementById('url');
+            const repoInput = document.getElementById('github-repo');
             
             isGitHubMode = !isGitHubMode;
             
@@ -714,6 +716,12 @@
                 githubBtn.title = 'Exit GitHub Mode';
                 urlInput.placeholder = 'GitHub URL will be auto-filled';
                 urlInput.disabled = true;
+                
+                // Pre-fill with last username if available
+                if (lastGitHubUsername && !repoInput.value) {
+                    repoInput.value = lastGitHubUsername;
+                    repoInput.placeholder = `${lastGitHubUsername}/repository or browse repos below`;
+                }
             } else {
                 githubMode.classList.add('hidden');
                 githubIcon.textContent = '🐱';
@@ -725,6 +733,7 @@
                 document.getElementById('github-repo').value = '';
                 document.getElementById('title').value = '';
                 document.getElementById('repo-list').classList.add('hidden');
+                repoInput.placeholder = 'username/repository (e.g., junkerfamily/MyFavorites)';
             }
         }
         
@@ -757,6 +766,9 @@
                 }
                 
                 const repoData = await response.json();
+                
+                // Remember the username for future searches
+                lastGitHubUsername = owner;
                 
                 // Generate GitHub Pages URL
                 const githubPagesUrl = `https://${owner}.github.io/${name}/`;
@@ -799,7 +811,13 @@
         // Search for all repositories by username
         async function searchUserRepos() {
             const repoInput = document.getElementById('github-repo');
-            const input = repoInput.value.trim();
+            let input = repoInput.value.trim();
+            
+            // If input is empty but we have a remembered username, use it
+            if (!input && lastGitHubUsername) {
+                input = lastGitHubUsername;
+                repoInput.value = lastGitHubUsername;
+            }
             
             // Extract username from input (could be just username or username/repo)
             let username = input;
@@ -808,9 +826,13 @@
             }
             
             if (!username) {
-                alert('Please enter a GitHub username (e.g., junkerfamily)');
+                const suggestion = lastGitHubUsername ? ` (or try "${lastGitHubUsername}")` : '';
+                alert(`Please enter a GitHub username (e.g., junkerfamily)${suggestion}`);
                 return;
             }
+            
+            // Remember this username for future searches
+            lastGitHubUsername = username;
             
             try {
                 // Show loading state
@@ -849,6 +871,10 @@
         // Select a repository from the list
         function selectRepo(fullName, description, stars, htmlUrl) {
             const [username, reponame] = fullName.split('/');
+            
+            // Remember the username for future searches
+            lastGitHubUsername = username;
+            
             const githubPagesUrl = `https://${username}.github.io/${reponame}/`;
             
             // Ask user which URL they prefer
