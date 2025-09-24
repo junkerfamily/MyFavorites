@@ -63,6 +63,10 @@
             padding: 8px 16px;
         }
         
+        .backup-controls {
+            margin-top: 10px;
+        }
+        
         .form-group {
             margin-bottom: 15px;
         }
@@ -292,6 +296,11 @@
             <h1>⭐ My Favorites</h1>
             <p>Keep track of your favorite project URLs and files</p>
             <button class="btn" id="toggle-form-btn" onclick="toggleAddForm()">➕ Add New Favorite</button>
+            <div class="backup-controls">
+                <button class="btn btn-small" onclick="exportFavorites()">📤 Export</button>
+                <button class="btn btn-small" onclick="importFavorites()">📥 Import</button>
+                <button class="btn btn-small" onclick="createBackupUrl()">🔗 Backup Link</button>
+            </div>
         </div>
         
         <div class="add-section hidden" id="add-section">
@@ -576,11 +585,180 @@
             return div.innerHTML;
         }
         
+        // Export favorites as JSON file
+        function exportFavorites() {
+            if (favorites.length === 0) {
+                alert('No favorites to export!');
+                return;
+            }
+            
+            const dataStr = JSON.stringify(favorites, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'my-favorites-backup.json';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            alert('Favorites exported successfully! Save this file to restore your data later.');
+        }
+        
+        // Import favorites from JSON file
+        function importFavorites() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            
+            input.onchange = function(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const importedFavorites = JSON.parse(e.target.result);
+                        
+                        if (!Array.isArray(importedFavorites)) {
+                            throw new Error('Invalid file format');
+                        }
+                        
+                        // Validate structure
+                        const isValid = importedFavorites.every(fav => 
+                            fav.hasOwnProperty('id') && 
+                            fav.hasOwnProperty('title') && 
+                            fav.hasOwnProperty('url') && 
+                            fav.hasOwnProperty('rating')
+                        );
+                        
+                        if (!isValid) {
+                            throw new Error('Invalid favorites format');
+                        }
+                        
+                        if (confirm(`Import ${importedFavorites.length} favorites? This will replace your current favorites.`)) {
+                            favorites = importedFavorites;
+                            saveFavorites();
+                            sortAndRenderFavorites();
+                            alert('Favorites imported successfully!');
+                        }
+                        
+                    } catch (error) {
+                        alert('Error importing file: ' + error.message);
+                    }
+                };
+                reader.readAsText(file);
+            };
+            
+            input.click();
+        }
+        
+        // Create a backup URL with encoded favorites
+        function createBackupUrl() {
+            if (favorites.length === 0) {
+                alert('No favorites to backup!');
+                return;
+            }
+            
+            try {
+                const encoded = btoa(JSON.stringify(favorites));
+                const backupUrl = window.location.origin + window.location.pathname + '?backup=' + encoded;
+                
+                // Copy to clipboard
+                navigator.clipboard.writeText(backupUrl).then(() => {
+                    alert('Backup URL copied to clipboard! Bookmark this URL to restore your favorites anytime.');
+                }).catch(() => {
+                    // Fallback for older browsers
+                    prompt('Copy this backup URL:', backupUrl);
+                });
+                
+            } catch (error) {
+                alert('Error creating backup URL: ' + error.message);
+            }
+        }
+        
+        // Load favorites from URL backup parameter
+        function loadFromUrlBackup() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const backup = urlParams.get('backup');
+            
+            if (backup && favorites.length === 0) {
+                try {
+                    const decoded = JSON.parse(atob(backup));
+                    if (Array.isArray(decoded) && decoded.length > 0) {
+                        if (confirm(`Found ${decoded.length} favorites in URL backup. Restore them?`)) {
+                            favorites = decoded;
+                            saveFavorites();
+                            // Clean URL
+                            window.history.replaceState({}, document.title, window.location.pathname);
+                            return true;
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error loading URL backup:', error);
+                }
+            }
+            return false;
+        }
+        
         // Initialize the app
         document.addEventListener('DOMContentLoaded', () => {
             initRatingStars();
+            
+            // Check for URL backup first
+            const restored = loadFromUrlBackup();
+            
+            // If no URL backup was loaded, check for localStorage
+            if (!restored) {
+                // Check if we might have lost data (localStorage supported but empty)
+                if (typeof(Storage) !== "undefined" && favorites.length === 0) {
+                    const hasVisited = sessionStorage.getItem('hasVisited');
+                    if (hasVisited && !localStorage.getItem('myFavorites')) {
+                        // User has visited before but localStorage is empty - might be iOS clearing data
+                        showDataLossWarning();
+                    }
+                    sessionStorage.setItem('hasVisited', 'true');
+                }
+            }
+            
             sortAndRenderFavorites();
         });
+        
+        // Show warning when data might have been lost
+        function showDataLossWarning() {
+            const warning = document.createElement('div');
+            warning.style.cssText = `
+                position: fixed;
+                top: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: #ff6b6b;
+                color: white;
+                padding: 15px 20px;
+                border-radius: 10px;
+                box-shadow: 0 5px 15px rgba(255, 107, 107, 0.3);
+                z-index: 10000;
+                font-size: 14px;
+                text-align: center;
+                max-width: 90vw;
+            `;
+            warning.innerHTML = `
+                ⚠️ Your favorites might have been cleared by iOS.<br>
+                Use <strong>Export</strong> or <strong>Backup Link</strong> to prevent data loss!
+                <button onclick="this.parentElement.remove()" style="margin-left: 10px; background: rgba(255,255,255,0.2); border: none; color: white; padding: 5px 10px; border-radius: 5px; cursor: pointer;">×</button>
+            `;
+            
+            document.body.appendChild(warning);
+            
+            // Auto-remove after 10 seconds
+            setTimeout(() => {
+                if (warning.parentElement) {
+                    warning.remove();
+                }
+            }, 10000);
+        }
         
         // Close modal when clicking outside
         window.addEventListener('click', (e) => {
