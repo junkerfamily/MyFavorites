@@ -67,6 +67,42 @@
             margin-top: 10px;
         }
         
+        .url-input-container {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .url-input-container input {
+            flex: 1;
+        }
+        
+        .github-btn {
+            min-width: 40px;
+            padding: 12px;
+            border-radius: 10px;
+        }
+        
+        .github-btn.active {
+            background: linear-gradient(135deg, #24292e, #444d56);
+        }
+        
+        .github-mode {
+            margin-top: 10px;
+            padding: 15px;
+            background: rgba(36, 41, 46, 0.05);
+            border-radius: 10px;
+            border: 2px dashed #ddd;
+        }
+        
+        .github-mode.hidden {
+            display: none;
+        }
+        
+        .github-mode input {
+            margin-bottom: 10px;
+        }
+        
         .form-group {
             margin-bottom: 15px;
         }
@@ -311,7 +347,16 @@
             
             <div class="form-group">
                 <label for="url">URL</label>
-                <input type="url" id="url" placeholder="https://example.com">
+                <div class="url-input-container">
+                    <input type="url" id="url" placeholder="https://example.com">
+                    <button type="button" class="btn btn-small github-btn" onclick="toggleGitHubMode()" title="GitHub Repository Mode">
+                        <span id="github-icon">🐱</span>
+                    </button>
+                </div>
+                <div id="github-mode" class="github-mode hidden">
+                    <input type="text" id="github-repo" placeholder="username/repository (e.g., junkerfamily/MyFavorites)">
+                    <button type="button" class="btn btn-small" onclick="fetchGitHubRepo()">Fetch Info</button>
+                </div>
             </div>
             
             <div class="form-group">
@@ -444,6 +489,17 @@
             const title = document.getElementById('title').value.trim();
             const url = document.getElementById('url').value.trim();
             
+            // Auto-detect GitHub URLs and suggest using GitHub mode
+            if (!isGitHubMode && url.includes('github.com/') && url.includes('/') && !url.includes('/issues') && !url.includes('/pull')) {
+                const match = url.match(/github\.com\/([^/]+\/[^/]+)/);
+                if (match && confirm('🐱 Detected GitHub repository! Would you like to use GitHub mode to auto-fill details?')) {
+                    document.getElementById('github-repo').value = match[1].replace(/\.git$/, '');
+                    toggleGitHubMode();
+                    fetchGitHubRepo();
+                    return;
+                }
+            }
+            
             if (!title || !url || currentRating === 0) {
                 alert('Please fill in all fields and set a rating!');
                 return;
@@ -460,7 +516,7 @@
             favorites.push(favorite);
             saveFavorites();
             sortAndRenderFavorites();
-            clearForm();
+            clearFormEnhanced();
         }
         
         function clearForm() {
@@ -575,7 +631,7 @@
             } else {
                 addSection.classList.add('hidden');
                 toggleBtn.textContent = '➕ Add New Favorite';
-                clearForm(); // Clear form when hiding
+                clearFormEnhanced(); // Clear form when hiding
             }
         }
         
@@ -583,6 +639,104 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+        
+        // GitHub integration functions
+        let isGitHubMode = false;
+        
+        function toggleGitHubMode() {
+            const githubMode = document.getElementById('github-mode');
+            const githubIcon = document.getElementById('github-icon');
+            const githubBtn = document.querySelector('.github-btn');
+            const urlInput = document.getElementById('url');
+            
+            isGitHubMode = !isGitHubMode;
+            
+            if (isGitHubMode) {
+                githubMode.classList.remove('hidden');
+                githubIcon.textContent = '❌';
+                githubBtn.classList.add('active');
+                githubBtn.title = 'Exit GitHub Mode';
+                urlInput.placeholder = 'GitHub URL will be auto-filled';
+                urlInput.disabled = true;
+            } else {
+                githubMode.classList.add('hidden');
+                githubIcon.textContent = '🐱';
+                githubBtn.classList.remove('active');
+                githubBtn.title = 'GitHub Repository Mode';
+                urlInput.placeholder = 'https://example.com';
+                urlInput.disabled = false;
+                urlInput.value = '';
+                document.getElementById('github-repo').value = '';
+                document.getElementById('title').value = '';
+            }
+        }
+        
+        async function fetchGitHubRepo() {
+            const repoInput = document.getElementById('github-repo');
+            const repo = repoInput.value.trim();
+            
+            if (!repo || !repo.includes('/')) {
+                alert('Please enter a valid GitHub repository (e.g., username/repository)');
+                return;
+            }
+            
+            const [owner, name] = repo.split('/');
+            if (!owner || !name) {
+                alert('Please enter a valid GitHub repository (e.g., username/repository)');
+                return;
+            }
+            
+            try {
+                // Show loading state
+                const fetchBtn = document.querySelector('#github-mode .btn');
+                const originalText = fetchBtn.textContent;
+                fetchBtn.textContent = 'Fetching...';
+                fetchBtn.disabled = true;
+                
+                const response = await fetch(`https://api.github.com/repos/${owner}/${name}`);
+                
+                if (!response.ok) {
+                    throw new Error(`Repository not found (${response.status})`);
+                }
+                
+                const repoData = await response.json();
+                
+                // Auto-fill the form
+                document.getElementById('title').value = repoData.full_name + (repoData.description ? ` - ${repoData.description.substring(0, 50)}${repoData.description.length > 50 ? '...' : ''}` : '');
+                document.getElementById('url').value = repoData.html_url;
+                
+                // Auto-suggest rating based on stars
+                let suggestedRating = 3; // Default
+                if (repoData.stargazers_count >= 1000) suggestedRating = 5;
+                else if (repoData.stargazers_count >= 100) suggestedRating = 4;
+                else if (repoData.stargazers_count >= 10) suggestedRating = 4;
+                else if (repoData.stargazers_count >= 1) suggestedRating = 3;
+                
+                setRating(suggestedRating);
+                
+                alert(`✅ Fetched: ${repoData.full_name}\n⭐ ${repoData.stargazers_count} stars\n📝 ${repoData.description || 'No description'}\n\nSuggested ${suggestedRating} star rating based on popularity!`);
+                
+                // Reset button
+                fetchBtn.textContent = originalText;
+                fetchBtn.disabled = false;
+                
+            } catch (error) {
+                alert('Error fetching repository: ' + error.message);
+                
+                // Reset button
+                const fetchBtn = document.querySelector('#github-mode .btn');
+                fetchBtn.textContent = 'Fetch Info';
+                fetchBtn.disabled = false;
+            }
+        }
+        
+        // Enhanced clear form to handle GitHub mode
+        function clearFormEnhanced() {
+            clearForm();
+            if (isGitHubMode) {
+                document.getElementById('github-repo').value = '';
+            }
         }
         
         // Export favorites as JSON file
