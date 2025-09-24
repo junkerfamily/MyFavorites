@@ -758,9 +758,18 @@
                 
                 const repoData = await response.json();
                 
+                // Generate GitHub Pages URL
+                const githubPagesUrl = `https://${owner}.github.io/${name}/`;
+                
+                // Ask user which URL they prefer
+                const choice = confirm(`🐱 Choose URL type:\n\n✅ OK = GitHub Pages URL (live site)\n${githubPagesUrl}\n\n❌ Cancel = Repository URL (source code)\n${repoData.html_url}`);
+                
+                const selectedUrl = choice ? githubPagesUrl : repoData.html_url;
+                const urlType = choice ? 'GitHub Pages' : 'Repository';
+                
                 // Auto-fill the form
                 document.getElementById('title').value = repoData.full_name + (repoData.description ? ` - ${repoData.description.substring(0, 50)}${repoData.description.length > 50 ? '...' : ''}` : '');
-                document.getElementById('url').value = repoData.html_url;
+                document.getElementById('url').value = selectedUrl;
                 
                 // Auto-suggest rating based on stars
                 let suggestedRating = 3; // Default
@@ -771,7 +780,7 @@
                 
                 setRating(suggestedRating);
                 
-                alert(`✅ Fetched: ${repoData.full_name}\n⭐ ${repoData.stargazers_count} stars\n📝 ${repoData.description || 'No description'}\n\nSuggested ${suggestedRating} star rating based on popularity!`);
+                alert(`✅ Fetched: ${repoData.full_name}\n🔗 Using ${urlType} URL\n⭐ ${repoData.stargazers_count} stars\n📝 ${repoData.description || 'No description'}\n\nSuggested ${suggestedRating} star rating based on popularity!`);
                 
                 // Reset button
                 fetchBtn.textContent = originalText;
@@ -839,9 +848,18 @@
         
         // Select a repository from the list
         function selectRepo(fullName, description, stars, htmlUrl) {
+            const [username, reponame] = fullName.split('/');
+            const githubPagesUrl = `https://${username}.github.io/${reponame}/`;
+            
+            // Ask user which URL they prefer
+            const choice = confirm(`🐱 Choose URL type:\n\n✅ OK = GitHub Pages URL (live site)\n${githubPagesUrl}\n\n❌ Cancel = Repository URL (source code)\n${htmlUrl}`);
+            
+            const selectedUrl = choice ? githubPagesUrl : htmlUrl;
+            const urlType = choice ? 'GitHub Pages' : 'Repository';
+            
             // Auto-fill the form
             document.getElementById('title').value = fullName + (description ? ` - ${description.substring(0, 50)}${description.length > 50 ? '...' : ''}` : '');
-            document.getElementById('url').value = htmlUrl;
+            document.getElementById('url').value = selectedUrl;
             
             // Auto-suggest rating based on stars
             let suggestedRating = 3; // Default
@@ -855,7 +873,7 @@
             // Hide the repo list
             document.getElementById('repo-list').classList.add('hidden');
             
-            alert(`✅ Selected: ${fullName}\n⭐ ${stars} stars\n📝 ${description || 'No description'}\n\nSuggested ${suggestedRating} star rating!`);
+            alert(`✅ Selected: ${fullName}\n🔗 Using ${urlType} URL\n⭐ ${stars} stars\n📝 ${description || 'No description'}\n\nSuggested ${suggestedRating} star rating!`);
         }
         
         // Helper function to escape attributes
