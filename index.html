@@ -725,8 +725,7 @@
                 githubBtn.classList.add('active');
                 githubBtn.title = 'Exit GitHub Mode';
                 urlInput.placeholder = 'GitHub URL will be auto-filled';
-                urlInput.disabled = true;
-                
+                // Do NOT disable the URL input; always allow editing
                 // Pre-fill with last username if available
                 if (lastGitHubUsername && !repoInput.value) {
                     repoInput.value = lastGitHubUsername;
@@ -738,7 +737,7 @@
                 githubBtn.classList.remove('active');
                 githubBtn.title = 'GitHub Repository Mode';
                 urlInput.placeholder = 'https://example.com';
-                urlInput.disabled = false;
+                // Do NOT disable the URL input; always allow editing
                 urlInput.value = '';
                 document.getElementById('github-repo').value = '';
                 document.getElementById('title').value = '';
