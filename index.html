@@ -4,6 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Favorites</title>
+    <!-- Firebase App (the core Firebase SDK) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <!-- Firebase Auth -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <!-- Firebase Firestore (for future upgrade) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <!-- Firebase config (external) -->
+    <script src="firebase-config.js"></script>
     <style>
         * {
             margin: 0;
@@ -390,6 +398,11 @@
         <div class="header">
             <h1>⭐ My Favorites</h1>
             <p>Keep track of your favorite project URLs and files</p>
+            <div id="auth-controls" style="margin-bottom: 10px;">
+                <button class="btn btn-small" id="google-login-btn" onclick="signInWithGoogle()">🔑 Sign in with Google</button>
+                <span id="user-info" style="display:none; margin-left:10px;"></span>
+                <button class="btn btn-small btn-danger" id="google-logout-btn" onclick="signOutGoogle()" style="display:none;">Sign Out</button>
+            </div>
             <button class="btn" id="toggle-form-btn" onclick="toggleAddForm()">➕ Add New Favorite</button>
             <div class="backup-controls">
                 <button class="btn btn-small" onclick="exportFavorites()">📤 Export</button>
@@ -486,31 +499,85 @@
     </div>
 
     <script>
-        let favorites = loadFavorites();
+        // --- Firebase config is now loaded from firebase-config.js ---
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+
+        // Google sign-in
+        function signInWithGoogle() {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithPopup(provider)
+                .then((result) => {
+                    // User signed in
+                })
+                .catch((error) => {
+                    alert('Google sign-in failed: ' + error.message);
+                });
+        }
+
+        function signOutGoogle() {
+            auth.signOut();
+        }
+
+        // Update UI on auth state change
+        auth.onAuthStateChanged(function(user) {
+            const loginBtn = document.getElementById('google-login-btn');
+            const logoutBtn = document.getElementById('google-logout-btn');
+            const userInfo = document.getElementById('user-info');
+            if (user) {
+                loginBtn.style.display = 'none';
+                logoutBtn.style.display = '';
+                userInfo.style.display = '';
+                userInfo.textContent = 'Signed in as ' + (user.displayName || user.email);
+            } else {
+                loginBtn.style.display = '';
+                logoutBtn.style.display = 'none';
+                userInfo.style.display = 'none';
+                userInfo.textContent = '';
+            }
+        });
+        // --- Firestore integration ---
+        const db = firebase.firestore();
+        let favorites = [];
         let currentRating = 0;
         let editRating = 0;
         let editingId = null;
-        
-        // Load favorites from localStorage
-        function loadFavorites() {
-            try {
-                const stored = localStorage.getItem('myFavorites');
-                return stored ? JSON.parse(stored) : [];
-            } catch (e) {
-                console.error('Error loading favorites:', e);
-                return [];
+        let isCloudMode = false;
+
+        // Helper: get user-specific collection
+        function getUserFavoritesCollection() {
+            const user = auth.currentUser;
+            if (!user) return null;
+            return db.collection('favorites').doc(user.uid).collection('items');
+        }
+
+        // Firestore CRUD
+        async function loadFavoritesFromCloud() {
+            const col = getUserFavoritesCollection();
+            if (!col) return [];
+            const snap = await col.get();
+            return snap.docs.map(doc => ({...doc.data(), id: doc.id}));
+        }
+
+        async function saveFavoriteToCloud(favorite) {
+            const col = getUserFavoritesCollection();
+            if (!col) return;
+            // If id exists, update; else, add new
+            if (favorite.id) {
+                await col.doc(favorite.id.toString()).set(favorite);
+            } else {
+                const docRef = await col.add(favorite);
+                favorite.id = docRef.id;
             }
         }
-        
-        // Save favorites to localStorage
-        function saveFavorites() {
-            try {
-                localStorage.setItem('myFavorites', JSON.stringify(favorites));
-            } catch (e) {
-                console.error('Error saving favorites:', e);
-                alert('Unable to save favorites. Storage might be full.');
-            }
+
+        async function deleteFavoriteFromCloud(id) {
+            const col = getUserFavoritesCollection();
+            if (!col) return;
+            await col.doc(id.toString()).delete();
         }
+        
+        // No longer using localStorage for favorites
         
         // Initialize rating system
         function initRatingStars() {
@@ -550,10 +617,9 @@
             document.getElementById('edit-rating-text').textContent = `${rating} star${rating !== 1 ? 's' : ''}`;
         }
         
-        function addFavorite() {
+        async function addFavorite() {
             const title = document.getElementById('title').value.trim();
             const url = document.getElementById('url').value.trim();
-            
             // Auto-detect GitHub URLs and suggest using GitHub mode
             if (!isGitHubMode && url.includes('github.com/') && url.includes('/') && !url.includes('/issues') && !url.includes('/pull')) {
                 const match = url.match(/github\.com\/([^/]+\/[^/]+)/);
@@ -564,22 +630,18 @@
                     return;
                 }
             }
-            
             if (!title || !url || currentRating === 0) {
                 alert('Please fill in all fields and set a rating!');
                 return;
             }
-            
             const favorite = {
-                id: Date.now(),
                 title,
                 url,
                 rating: currentRating,
                 dateAdded: new Date().toLocaleDateString()
             };
-            
-            favorites.push(favorite);
-            saveFavorites();
+            await saveFavoriteToCloud(favorite);
+            favorites = await loadFavoritesFromCloud();
             sortAndRenderFavorites();
             clearFormEnhanced();
         }
@@ -657,24 +719,23 @@
             document.getElementById('edit-modal').style.display = 'block';
         }
         
-        function saveEdit() {
+        async function saveEdit() {
             const title = document.getElementById('edit-title').value.trim();
             const url = document.getElementById('edit-url').value.trim();
-            
             if (!title || !url || editRating === 0) {
                 alert('Please fill in all fields and set a rating!');
                 return;
             }
-            
             const favoriteIndex = favorites.findIndex(f => f.id === editingId);
             if (favoriteIndex !== -1) {
-                favorites[favoriteIndex] = {
+                const updated = {
                     ...favorites[favoriteIndex],
                     title,
                     url,
                     rating: editRating
                 };
-                saveFavorites();
+                await saveFavoriteToCloud(updated);
+                favorites = await loadFavoritesFromCloud();
                 sortAndRenderFavorites();
                 closeEditModal();
             }
@@ -686,10 +747,10 @@
             editRating = 0;
         }
         
-        function deleteFavorite(id) {
+        async function deleteFavorite(id) {
             if (confirm('Are you sure you want to delete this favorite?')) {
-                favorites = favorites.filter(f => f.id !== id);
-                saveFavorites();
+                await deleteFavoriteFromCloud(id);
+                favorites = await loadFavoritesFromCloud();
                 renderFavorites();
             }
         }
@@ -1265,7 +1326,6 @@
         
         // Initialize the app
         document.addEventListener('DOMContentLoaded', () => {
-            // Remove focus from any element to ensure scrolling works on load
             setTimeout(() => {
                 if (document.activeElement && typeof document.activeElement.blur === 'function') {
                     document.activeElement.blur();
@@ -1292,21 +1352,18 @@
                     lastY = currentY;
                 }, { passive: false });
             }
-            // Check for URL backup first
-            const restored = loadFromUrlBackup();
-            // If no URL backup was loaded, check for localStorage
-            if (!restored) {
-                // Check if we might have lost data (localStorage supported but empty)
-                if (typeof(Storage) !== "undefined" && favorites.length === 0) {
-                    const hasVisited = sessionStorage.getItem('hasVisited');
-                    if (hasVisited && !localStorage.getItem('myFavorites')) {
-                        // User has visited before but localStorage is empty - might be iOS clearing data
-                        showDataLossWarning();
-                    }
-                    sessionStorage.setItem('hasVisited', 'true');
+            // Wait for auth state
+            auth.onAuthStateChanged(async function(user) {
+                if (user) {
+                    isCloudMode = true;
+                    favorites = await loadFavoritesFromCloud();
+                    sortAndRenderFavorites();
+                } else {
+                    isCloudMode = false;
+                    favorites = [];
+                    sortAndRenderFavorites();
                 }
-            }
-            sortAndRenderFavorites();
+            });
         });
         
         // Show warning when data might have been lost
