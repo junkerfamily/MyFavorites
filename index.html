@@ -1161,7 +1161,8 @@
             const input = document.createElement('input');
             input.type = 'file';
             input.accept = '.json';
-            input.style.display = 'none'; // Hide the input element
+            input.style.position = 'absolute';
+            input.style.left = '-9999px'; // Hide off-screen instead of display: none
             document.body.appendChild(input); // Attach to DOM
             
             input.onchange = function(event) {
