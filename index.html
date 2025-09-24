@@ -182,15 +182,20 @@
             margin-bottom: 5px;
         }
         
-        .favorite-url {
-            color: #667eea;
+        .favorite-title-link {
             text-decoration: none;
-            font-size: 14px;
-            word-break: break-all;
+            color: inherit;
+            display: block;
+            transition: all 0.2s ease;
         }
         
-        .favorite-url:hover {
-            text-decoration: underline;
+        .favorite-title-link:hover {
+            color: #667eea;
+            transform: translateX(2px);
+        }
+        
+        .favorite-title-link:hover .favorite-title {
+            color: #667eea;
         }
         
         .favorite-rating {
@@ -486,8 +491,9 @@
                 <div class="favorite-item">
                     <div class="favorite-header">
                         <div>
-                            <div class="favorite-title">${escapeHtml(fav.title)}</div>
-                            <a href="${escapeHtml(fav.url)}" target="_blank" class="favorite-url">${escapeHtml(fav.url)}</a>
+                            <a href="${escapeHtml(fav.url)}" target="_blank" class="favorite-title-link">
+                                <div class="favorite-title">${escapeHtml(fav.title)}</div>
+                            </a>
                         </div>
                         <div class="favorite-rating">
                             ${'★'.repeat(fav.rating)}${'☆'.repeat(5 - fav.rating)}
