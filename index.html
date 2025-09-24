@@ -1137,6 +1137,8 @@
         
         // Import favorites from JSON file
         function importFavorites() {
+            alert('📁 Please select your exported "my-favorites-backup.json" file from your Downloads folder.');
+            
             const input = document.createElement('input');
             input.type = 'file';
             input.accept = '.json';
