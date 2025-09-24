@@ -618,7 +618,7 @@
             }
             
             container.innerHTML = favorites.map(fav => `
-                <div class="favorite-item">
+                <div class="favorite-item" tabindex="-1" onmousedown="event.preventDefault();">
                     <div class="favorite-header">
                         <div>
                             <a href="${escapeHtml(fav.url)}" target="_blank" class="favorite-title-link">
@@ -630,11 +630,19 @@
                         </div>
                     </div>
                     <div class="favorite-actions">
-                        <button class="btn btn-small btn-edit" onclick="editFavorite(${fav.id})">Edit</button>
-                        <button class="btn btn-small btn-danger" onclick="deleteFavorite(${fav.id})">Delete</button>
+                        <button class="btn btn-small btn-edit" onclick="editFavorite(${fav.id}); blurActiveElement();">Edit</button>
+                        <button class="btn btn-small btn-danger" onclick="deleteFavorite(${fav.id}); blurActiveElement();">Delete</button>
                     </div>
                 </div>
             `).join('');
+            // Remove focus from any element after click to restore scrolling
+            setTimeout(blurActiveElement, 0);
+        // Remove focus from any element to restore scrolling
+        function blurActiveElement() {
+            if (document.activeElement && typeof document.activeElement.blur === 'function') {
+                document.activeElement.blur();
+            }
+        }
         }
         
         function editFavorite(id) {
