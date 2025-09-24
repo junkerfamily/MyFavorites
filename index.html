@@ -154,6 +154,14 @@
             color: #888;
         }
         
+        #repo-filter {
+            margin-bottom: 10px;
+        }
+        
+        #repo-filter.hidden {
+            display: none;
+        }
+        
         .form-group {
             margin-bottom: 15px;
         }
@@ -410,6 +418,7 @@
                         <button type="button" class="btn btn-small" onclick="fetchGitHubRepo()">Fetch Info</button>
                         <button type="button" class="btn btn-small" onclick="searchUserRepos()">Browse User Repos</button>
                     </div>
+                    <input type="text" id="repo-filter" class="hidden" placeholder="Filter repositories..." oninput="filterRepos()">
                     <div id="repo-list" class="repo-list hidden"></div>
                 </div>
             </div>
@@ -840,18 +849,32 @@
                 repoList.classList.remove('hidden');
                 repoList.innerHTML = '<div style="padding: 20px; text-align: center;">🔍 Searching repositories...</div>';
                 
-                const response = await fetch(`https://api.github.com/users/${username}/repos?sort=updated&per_page=50`);
+                const response = await fetch(`https://api.github.com/users/${username}/repos?sort=updated&per_page=100&type=all`);
                 
                 if (!response.ok) {
                     throw new Error(`User not found or API limit reached (${response.status})`);
                 }
                 
                 const repos = await response.json();
+                allRepos = repos; // Store for filtering
+                
+                console.log(`Found ${repos.length} repositories for ${username}:`, repos.map(r => r.name));
                 
                 if (repos.length === 0) {
                     repoList.innerHTML = '<div style="padding: 20px; text-align: center;">No public repositories found</div>';
                     return;
                 }
+                
+                // Check if EZ_Message is in the results
+                const ezMessage = repos.find(r => r.name.toLowerCase().includes('ez_message') || r.name.toLowerCase().includes('ezmessage'));
+                if (ezMessage) {
+                    console.log('Found EZ_Message:', ezMessage.name, ezMessage.full_name);
+                } else {
+                    console.log('EZ_Message not found in results. Available repos:', repos.map(r => r.name));
+                }
+                
+                // Show the filter input
+                document.getElementById('repo-filter').classList.remove('hidden');
                 
                 // Display repositories
                 repoList.innerHTML = repos.map(repo => `
@@ -860,7 +883,7 @@
                         <div class="repo-description">${repo.description || 'No description'}</div>
                         <div class="repo-stats">⭐ ${repo.stargazers_count} stars • Updated ${new Date(repo.updated_at).toLocaleDateString()}</div>
                     </div>
-                `).join('');
+                `).join('') + `<div style="padding: 10px; font-size: 11px; color: #888; border-top: 1px solid #eee;">Found ${repos.length} repositories • Type "EZ" to search</div>`;
                 
             } catch (error) {
                 const repoList = document.getElementById('repo-list');
@@ -907,12 +930,44 @@
             return text.replace(/'/g, "\\'").replace(/"/g, '\\"');
         }
         
+        // Store all repos for filtering
+        let allRepos = [];
+        
+        // Filter repositories based on search input
+        function filterRepos() {
+            const filter = document.getElementById('repo-filter').value.toLowerCase();
+            const repoList = document.getElementById('repo-list');
+            
+            if (!allRepos.length) return;
+            
+            const filteredRepos = allRepos.filter(repo => 
+                repo.name.toLowerCase().includes(filter) || 
+                (repo.description && repo.description.toLowerCase().includes(filter))
+            );
+            
+            if (filteredRepos.length === 0) {
+                repoList.innerHTML = `<div style="padding: 20px; text-align: center;">No repositories match "${filter}"</div>`;
+                return;
+            }
+            
+            repoList.innerHTML = filteredRepos.map(repo => `
+                <div class="repo-item" onclick="selectRepo('${repo.full_name}', '${escapeForAttribute(repo.description || '')}', ${repo.stargazers_count}, '${repo.html_url}')">
+                    <div class="repo-name">${repo.name}</div>
+                    <div class="repo-description">${repo.description || 'No description'}</div>
+                    <div class="repo-stats">⭐ ${repo.stargazers_count} stars • Updated ${new Date(repo.updated_at).toLocaleDateString()}</div>
+                </div>
+            `).join('') + `<div style="padding: 10px; font-size: 11px; color: #888; border-top: 1px solid #eee;">Showing ${filteredRepos.length} of ${allRepos.length} repositories</div>`;
+        }
+        
         // Enhanced clear form to handle GitHub mode
         function clearFormEnhanced() {
             clearForm();
             if (isGitHubMode) {
                 document.getElementById('github-repo').value = '';
                 document.getElementById('repo-list').classList.add('hidden');
+                document.getElementById('repo-filter').classList.add('hidden');
+                document.getElementById('repo-filter').value = '';
+                allRepos = [];
             }
         }
         
