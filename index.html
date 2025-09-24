@@ -417,6 +417,7 @@
                     <div class="github-buttons">
                         <button type="button" class="btn btn-small" onclick="fetchGitHubRepo()">Fetch Info</button>
                         <button type="button" class="btn btn-small" onclick="searchUserRepos()">Browse User Repos</button>
+                        <button type="button" class="btn btn-small" onclick="searchAllUserRepos()" title="Try all repository types">All Repos</button>
                     </div>
                     <input type="text" id="repo-filter" class="hidden" placeholder="Filter repositories..." oninput="filterRepos()">
                     <div id="repo-list" class="repo-list hidden"></div>
@@ -849,7 +850,8 @@
                 repoList.classList.remove('hidden');
                 repoList.innerHTML = '<div style="padding: 20px; text-align: center;">🔍 Searching repositories...</div>';
                 
-                const response = await fetch(`https://api.github.com/users/${username}/repos?sort=updated&per_page=100&type=all`);
+                // Try different sorting options to get all repos
+                const response = await fetch(`https://api.github.com/users/${username}/repos?sort=created&per_page=100&type=owner`);
                 
                 if (!response.ok) {
                     throw new Error(`User not found or API limit reached (${response.status})`);
@@ -858,19 +860,55 @@
                 const repos = await response.json();
                 allRepos = repos; // Store for filtering
                 
-                console.log(`Found ${repos.length} repositories for ${username}:`, repos.map(r => r.name));
+                console.log(`Found ${repos.length} repositories for ${username}:`);
+                console.log('All repository names:', repos.map(r => r.name).sort());
+                console.log('Repository details:', repos.map(r => ({
+                    name: r.name,
+                    full_name: r.full_name,
+                    private: r.private,
+                    fork: r.fork,
+                    owner: r.owner.login,
+                    created_at: r.created_at
+                })));
                 
                 if (repos.length === 0) {
-                    repoList.innerHTML = '<div style="padding: 20px; text-align: center;">No public repositories found</div>';
-                    return;
+                    repoList.innerHTML = '<div style="padding: 20px; text-align: center;">No repositories found. Trying different API parameters...</div>';
+                    
+                    // Try alternative API call for all repos including forks
+                    try {
+                        const altResponse = await fetch(`https://api.github.com/users/${username}/repos?sort=created&per_page=100&type=all`);
+                        if (altResponse.ok) {
+                            const altRepos = await altResponse.json();
+                            console.log('Alternative API call found:', altRepos.length, 'repos');
+                            if (altRepos.length > 0) {
+                                repos = altRepos;
+                                allRepos = altRepos;
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Alternative API call failed:', e);
+                    }
+                    
+                    if (repos.length === 0) {
+                        repoList.innerHTML = '<div style="padding: 20px; text-align: center;">No repositories found</div>';
+                        return;
+                    }
                 }
                 
-                // Check if EZ_Message is in the results
-                const ezMessage = repos.find(r => r.name.toLowerCase().includes('ez_message') || r.name.toLowerCase().includes('ezmessage'));
+                // Check if EZ_Message is in the results (case insensitive)
+                const ezMessage = repos.find(r => 
+                    r.name.toLowerCase().includes('ez_message') || 
+                    r.name.toLowerCase().includes('ezmessage') ||
+                    r.name.toLowerCase().includes('ez-message') ||
+                    r.name.toLowerCase() === 'ez_message'
+                );
                 if (ezMessage) {
-                    console.log('Found EZ_Message:', ezMessage.name, ezMessage.full_name);
+                    console.log('✅ Found EZ_Message variant:', ezMessage.name, ezMessage.full_name);
                 } else {
-                    console.log('EZ_Message not found in results. Available repos:', repos.map(r => r.name));
+                    console.log('❌ EZ_Message not found. Searching for similar names...');
+                    const ezLike = repos.filter(r => r.name.toLowerCase().includes('ez'));
+                    console.log('Repositories containing "ez":', ezLike.map(r => r.name));
+                    console.log('All available repos:', repos.map(r => r.name).sort());
                 }
                 
                 // Show the filter input
@@ -957,6 +995,111 @@
                     <div class="repo-stats">⭐ ${repo.stargazers_count} stars • Updated ${new Date(repo.updated_at).toLocaleDateString()}</div>
                 </div>
             `).join('') + `<div style="padding: 10px; font-size: 11px; color: #888; border-top: 1px solid #eee;">Showing ${filteredRepos.length} of ${allRepos.length} repositories</div>`;
+        }
+        
+        // Search ALL repositories including private, forks, etc.
+        async function searchAllUserRepos() {
+            const repoInput = document.getElementById('github-repo');
+            let input = repoInput.value.trim();
+            
+            // If input is empty but we have a remembered username, use it
+            if (!input && lastGitHubUsername) {
+                input = lastGitHubUsername;
+                repoInput.value = lastGitHubUsername;
+            }
+            
+            // Extract username from input
+            let username = input;
+            if (input.includes('/')) {
+                username = input.split('/')[0];
+            }
+            
+            if (!username) {
+                alert('Please enter a GitHub username');
+                return;
+            }
+            
+            lastGitHubUsername = username;
+            
+            try {
+                const repoList = document.getElementById('repo-list');
+                repoList.classList.remove('hidden');
+                repoList.innerHTML = '<div style="padding: 20px; text-align: center;">🔍 Searching ALL repositories (including private, forks)...</div>';
+                
+                // Try multiple API endpoints to get all possible repos
+                const endpoints = [
+                    `https://api.github.com/users/${username}/repos?sort=created&per_page=100&type=all`,
+                    `https://api.github.com/users/${username}/repos?sort=updated&per_page=100&type=all`,
+                    `https://api.github.com/users/${username}/repos?sort=pushed&per_page=100&type=owner`,
+                    `https://api.github.com/users/${username}/repos?sort=full_name&per_page=100&type=public`
+                ];
+                
+                let allFoundRepos = [];
+                let foundRepoNames = new Set();
+                
+                for (let endpoint of endpoints) {
+                    try {
+                        const response = await fetch(endpoint);
+                        if (response.ok) {
+                            const repos = await response.json();
+                            console.log(`Endpoint ${endpoint.split('?')[1]} found:`, repos.length, 'repos');
+                            
+                            // Add unique repos
+                            repos.forEach(repo => {
+                                if (!foundRepoNames.has(repo.full_name)) {
+                                    foundRepoNames.add(repo.full_name);
+                                    allFoundRepos.push(repo);
+                                }
+                            });
+                        }
+                    } catch (e) {
+                        console.error('Failed endpoint:', endpoint, e);
+                    }
+                }
+                
+                console.log(`Total unique repositories found: ${allFoundRepos.length}`);
+                console.log('All unique repo names:', Array.from(foundRepoNames).sort());
+                
+                if (allFoundRepos.length === 0) {
+                    repoList.innerHTML = '<div style="padding: 20px; text-align: center;">No repositories found across all endpoints</div>';
+                    return;
+                }
+                
+                allRepos = allFoundRepos;
+                
+                // Check for EZ_Message variants
+                const ezMessage = allFoundRepos.find(r => 
+                    r.name.toLowerCase().includes('ez_message') || 
+                    r.name.toLowerCase().includes('ezmessage') ||
+                    r.name.toLowerCase().includes('ez-message') ||
+                    r.name.toLowerCase() === 'ez_message'
+                );
+                
+                if (ezMessage) {
+                    console.log('🎉 FOUND EZ_Message in comprehensive search:', ezMessage.name, ezMessage.full_name);
+                } else {
+                    console.log('Still no EZ_Message. All repo names:', allFoundRepos.map(r => r.name).sort());
+                }
+                
+                // Show the filter input
+                document.getElementById('repo-filter').classList.remove('hidden');
+                
+                // Sort by creation date (newest first)
+                allFoundRepos.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                
+                // Display repositories
+                repoList.innerHTML = allFoundRepos.map(repo => `
+                    <div class="repo-item" onclick="selectRepo('${repo.full_name}', '${escapeForAttribute(repo.description || '')}', ${repo.stargazers_count}, '${repo.html_url}')">
+                        <div class="repo-name">${repo.name} ${repo.private ? '🔒' : ''} ${repo.fork ? '🍴' : ''}</div>
+                        <div class="repo-description">${repo.description || 'No description'}</div>
+                        <div class="repo-stats">⭐ ${repo.stargazers_count} stars • Created ${new Date(repo.created_at).toLocaleDateString()}</div>
+                    </div>
+                `).join('') + `<div style="padding: 10px; font-size: 11px; color: #888; border-top: 1px solid #eee;">Found ${allFoundRepos.length} total repositories (🔒=private, 🍴=fork)</div>`;
+                
+            } catch (error) {
+                const repoList = document.getElementById('repo-list');
+                repoList.innerHTML = `<div style="padding: 20px; text-align: center; color: #d73a49;">❌ ${error.message}</div>`;
+            }
         }
         
         // Enhanced clear form to handle GitHub mode
