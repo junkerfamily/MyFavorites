@@ -1,5 +1,15 @@
 {
+  "name": "my-favorites",
+  "version": "1.0.0",
+  "description": "My Favorites web app with Firebase cloud sync",
   "dependencies": {
     "firebase": "^12.3.0"
+  },
+  "devDependencies": {
+    "gh-pages": "^6.0.0"
+  },
+  "scripts": {
+    "predeploy": "echo No build step",
+    "deploy": "gh-pages -d docs"
   }
 }

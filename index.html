@@ -30,6 +30,7 @@
             max-width: 600px;
             margin: 0 auto;
             background: rgba(255, 255, 255, 0.95);
+            -webkit-backdrop-filter: blur(10px); /* Safari support */
             backdrop-filter: blur(10px);
             border-radius: 20px;
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
@@ -213,6 +214,7 @@
             color: #ddd;
             cursor: pointer;
             transition: all 0.2s ease;
+            -webkit-user-select: none; /* Safari support */
             user-select: none;
         }
         
@@ -398,10 +400,10 @@
         <div class="header">
             <h1>⭐ My Favorites</h1>
             <p>Keep track of your favorite project URLs and files</p>
-            <div id="auth-controls" style="margin-bottom: 10px;">
+            <div id="auth-controls" class="auth-controls">
                 <button class="btn btn-small" id="google-login-btn" onclick="signInWithGoogle()">🔑 Sign in with Google</button>
-                <span id="user-info" style="display:none; margin-left:10px;"></span>
-                <button class="btn btn-small btn-danger" id="google-logout-btn" onclick="signOutGoogle()" style="display:none;">Sign Out</button>
+                <span id="user-info" class="user-info"></span>
+                <button class="btn btn-small btn-danger" id="google-logout-btn" onclick="signOutGoogle()" class="google-logout-btn">Sign Out</button>
             </div>
             <button class="btn" id="toggle-form-btn" onclick="toggleAddForm()">➕ Add New Favorite</button>
             <div class="backup-controls">
@@ -410,6 +412,16 @@
                 <button class="btn btn-small" onclick="createBackupUrl()">🔗 Backup Link</button>
             </div>
         </div>
+        .auth-controls {
+            margin-bottom: 10px;
+        }
+        .user-info {
+            display: none;
+            margin-left: 10px;
+        }
+        .google-logout-btn {
+            display: none;
+        }
         
         <div class="add-section hidden" id="add-section">
             <div class="form-group">

@@ -1,24 +1,4 @@
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Favorites</title>
-    <!-- Firebase App (the core Firebase SDK) -->
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <!-- Firebase Auth -->
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-    <!-- Firebase Firestore (for future upgrade) -->
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-    <!-- Firebase config (external) -->
-    <script src="firebase-config.js"></script>
-    <style>
-        /* ...existing code... */
-    </style>
-</head>
-<body>
-    <!-- ...existing code... -->
-</body>
-</html>
+<!-- Removed duplicate meta tags and head/body -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -49,6 +29,7 @@
             max-width: 600px;
             margin: 0 auto;
             background: rgba(255, 255, 255, 0.95);
+            -webkit-backdrop-filter: blur(10px); /* Safari support */
             backdrop-filter: blur(10px);
             border-radius: 20px;
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
@@ -200,7 +181,18 @@
             color: #ddd;
             cursor: pointer;
             transition: all 0.2s ease;
+            -webkit-user-select: none; /* Safari support */
             user-select: none;
+        #auth-controls {
+            margin-bottom: 10px;
+        }
+        #user-info {
+            display: none;
+            margin-left: 10px;
+        }
+        #google-logout-btn {
+            display: none;
+        }
         }
         .star:hover, .star.active {
             color: #ffd700;
@@ -358,10 +350,10 @@
         <div class="header">
             <h1>⭐ My Favorites</h1>
             <p>Keep track of your favorite project URLs and files</p>
-            <div id="auth-controls" style="margin-bottom: 10px;">
-                <button class="btn btn-small" id="google-login-btn" onclick="signInWithGoogle()">🔑 Sign in with Google</button>
-                <span id="user-info" style="display:none; margin-left:10px;"></span>
-                <button class="btn btn-small btn-danger" id="google-logout-btn" onclick="signOutGoogle()" style="display:none;">Sign Out</button>
+            <div id="auth-controls">
+            <div id="auth-controls">
+                <span id="user-info"></span>
+                <button class="btn btn-small btn-danger" id="google-logout-btn" onclick="signOutGoogle()">Sign Out</button>
             </div>
             <button class="btn" id="toggle-form-btn" onclick="toggleAddForm()">➕ Add New Favorite</button>
             <div class="backup-controls">
