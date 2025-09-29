@@ -351,7 +351,7 @@
             <h1>⭐ My Favorites</h1>
             <p>Keep track of your favorite project URLs and files</p>
             <div id="auth-controls">
-            <div id="auth-controls">
+                <button class="btn btn-small" id="google-login-btn" onclick="signInWithGoogle()">🔑 Sign in with Google</button>
                 <span id="user-info"></span>
                 <button class="btn btn-small btn-danger" id="google-logout-btn" onclick="signOutGoogle()">Sign Out</button>
             </div>
@@ -559,6 +559,11 @@
         }
         
         async function addFavorite() {
+            // Check if user is signed in
+            if (!auth.currentUser) {
+                alert('You must be signed in to add a favorite. Please sign in with Google first.');
+                return;
+            }
             const title = document.getElementById('title').value.trim();
             const url = document.getElementById('url').value.trim();
             // Auto-detect GitHub URLs and suggest using GitHub mode
