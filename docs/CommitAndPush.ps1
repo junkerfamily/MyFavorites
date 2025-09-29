@@ -1,0 +1,1 @@
+git add .; git commit -a -m "$(Read-Host 'Enter commit message')"; git push
