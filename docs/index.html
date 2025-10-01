@@ -50,6 +50,44 @@
             opacity: 0.9;
             font-size: 16px;
         }
+        .header-controls {
+            margin-top: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .category-filter {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .category-filter:focus {
+            outline: none;
+            border-color: rgba(255, 255, 255, 0.8);
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.2);
+        }
+        .category-select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 16px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .category-select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
         .add-section {
             padding: 20px;
             border-bottom: 1px solid #eee;
@@ -350,16 +388,25 @@
         <div class="header">
             <h1>⭐ My Favorites</h1>
             <p>Keep track of your favorite project URLs and files</p>
-            <div id="auth-controls">
-                <button class="btn btn-small" id="google-login-btn" onclick="signInWithGoogle()">🔑 Sign in with Google</button>
-                <span id="user-info"></span>
-                <button class="btn btn-small btn-danger" id="google-logout-btn" onclick="signOutGoogle()">Sign Out</button>
-            </div>
-            <button class="btn" id="toggle-form-btn" onclick="toggleAddForm()">➕ Add New Favorite</button>
-            <div class="backup-controls">
-                <button class="btn btn-small" onclick="exportFavorites()">📤 Export</button>
-                <button class="btn btn-small" onclick="importFavorites()">📥 Import</button>
-                <button class="btn btn-small" onclick="createBackupUrl()">🔗 Backup Link</button>
+            <div class="header-controls">
+                <select class="category-filter" id="category-filter" onchange="filterByCategory()" title="Filter favorites by category">
+                    <option value="All">📂 All Categories</option>
+                    <option value="Work">💼 Work</option>
+                    <option value="Personal">🏠 Personal</option>
+                    <option value="Projects">🚀 Projects</option>
+                    <option value="Learning">📚 Learning</option>
+                </select>
+                <div id="auth-controls">
+                    <button class="btn btn-small" id="google-login-btn" onclick="signInWithGoogle()">🔑 Sign in with Google</button>
+                    <span id="user-info"></span>
+                    <button class="btn btn-small btn-danger" id="google-logout-btn" onclick="signOutGoogle()">Sign Out</button>
+                </div>
+                <button class="btn" id="toggle-form-btn" onclick="toggleAddForm()">➕ Add New Favorite</button>
+                <div class="backup-controls">
+                    <button class="btn btn-small" onclick="exportFavorites()">📤 Export</button>
+                    <button class="btn btn-small" onclick="importFavorites()">📥 Import</button>
+                    <button class="btn btn-small" onclick="createBackupUrl()">🔗 Backup Link</button>
+                </div>
             </div>
         </div>
         <div class="add-section hidden" id="add-section">
@@ -399,6 +446,15 @@
                     <span id="rating-text">Click to rate</span>
                 </div>
             </div>
+            <div class="form-group">
+                <label for="category">Category</label>
+                <select id="category" class="category-select">
+                    <option value="Personal">🏠 Personal</option>
+                    <option value="Work">💼 Work</option>
+                    <option value="Projects">🚀 Projects</option>
+                    <option value="Learning">📚 Learning</option>
+                </select>
+            </div>
             <button class="btn" onclick="addFavorite()">Add Favorite</button>
             <button class="btn btn-danger" onclick="toggleAddForm()">Cancel</button>
         </div>
@@ -421,6 +477,15 @@
             <div class="form-group">
                 <label for="edit-url">URL</label>
                 <input type="url" id="edit-url">
+            </div>
+            <div class="form-group">
+                <label for="edit-category">Category</label>
+                <select id="edit-category" class="category-select">
+                    <option value="Personal">🏠 Personal</option>
+                    <option value="Work">💼 Work</option>
+                    <option value="Projects">🚀 Projects</option>
+                    <option value="Learning">📚 Learning</option>
+                </select>
             </div>
             <div class="form-group">
                 <label>Rating</label>
@@ -497,7 +562,29 @@
             const col = getUserFavoritesCollection();
             if (!col) return [];
             const snap = await col.get();
-            return snap.docs.map(doc => ({...doc.data(), id: doc.id}));
+            const loadedFavorites = snap.docs.map(doc => ({...doc.data(), id: doc.id}));
+            
+            // Migrate old favorites without category to "Personal"
+            let needsMigration = false;
+            const migratedFavorites = loadedFavorites.map(fav => {
+                if (!fav.category) {
+                    needsMigration = true;
+                    return { ...fav, category: 'Personal' };
+                }
+                return fav;
+            });
+            
+            // Save migrated favorites back to cloud
+            if (needsMigration) {
+                console.log('Migrating favorites without categories to Personal...');
+                for (const fav of migratedFavorites) {
+                    if (loadedFavorites.find(f => f.id === fav.id && !f.category)) {
+                        await saveFavoriteToCloud(fav);
+                    }
+                }
+            }
+            
+            return migratedFavorites;
         }
 
         async function saveFavoriteToCloud(favorite) {
@@ -566,6 +653,7 @@
             }
             const title = document.getElementById('title').value.trim();
             const url = document.getElementById('url').value.trim();
+            const category = document.getElementById('category').value;
             // Auto-detect GitHub URLs and suggest using GitHub mode
             if (!isGitHubMode && url.includes('github.com/') && url.includes('/') && !url.includes('/issues') && !url.includes('/pull')) {
                 const match = url.match(/github\.com\/([^/]+\/[^/]+)/);
@@ -584,6 +672,7 @@
                 title,
                 url,
                 rating: currentRating,
+                category,
                 dateAdded: new Date().toLocaleDateString()
             };
             await saveFavoriteToCloud(favorite);
@@ -595,6 +684,7 @@
         function clearForm() {
             document.getElementById('title').value = '';
             document.getElementById('url').value = '';
+            document.getElementById('category').value = 'Personal';
             currentRating = 0;
             const stars = document.querySelectorAll('#rating-stars .star');
             highlightStars(stars, 0);
@@ -612,26 +702,58 @@
             renderFavorites();
         }
         
+        function filterByCategory() {
+            renderFavorites();
+        }
+        
+        function getCategoryEmoji(category) {
+            const emojis = {
+                'Personal': '🏠',
+                'Work': '💼',
+                'Projects': '🚀',
+                'Learning': '📚'
+            };
+            return emojis[category] || '🏠';
+        }
+        
         function renderFavorites() {
+            const selectedCategory = document.getElementById('category-filter').value;
+            const filteredFavorites = selectedCategory === 'All' 
+                ? favorites 
+                : favorites.filter(fav => (fav.category || 'Personal') === selectedCategory);
+            
+            console.log('Rendering favorites:', {
+                total: favorites.length,
+                filtered: filteredFavorites.length,
+                category: selectedCategory,
+                favorites: favorites.map(f => ({ title: f.title, category: f.category || 'Personal (default)' }))
+            });
+            
             const container = document.getElementById('favorites-list');
             
-            if (favorites.length === 0) {
+            if (filteredFavorites.length === 0) {
+                const message = selectedCategory === 'All' 
+                    ? 'No favorites yet' 
+                    : `No favorites in ${selectedCategory} category`;
                 container.innerHTML = `
                     <div class="empty-state">
-                        <h3>No favorites yet</h3>
-                        <p>Add your first favorite above to get started!</p>
+                        <h3>${message}</h3>
+                        <p>${selectedCategory === 'All' ? 'Add your first favorite above to get started!' : 'Add favorites to this category or select a different category.'}</p>
                     </div>
                 `;
                 return;
             }
             
-            container.innerHTML = favorites.map(fav => `
+            container.innerHTML = filteredFavorites.map(fav => `
                 <div class="favorite-item">
                     <div class="favorite-header">
                         <div>
                             <a href="${escapeHtml(fav.url)}" target="_blank" class="favorite-title-link">
                                 <div class="favorite-title">${escapeHtml(fav.title)}</div>
                             </a>
+                            <div class="favorite-category" style="font-size: 12px; color: #666; margin-top: 4px;">
+                                ${getCategoryEmoji(fav.category || 'Personal')} ${fav.category || 'Personal'}
+                            </div>
                         </div>
                         <div class="favorite-rating">
                             ${'★'.repeat(fav.rating)}${'☆'.repeat(5 - fav.rating)}
@@ -645,12 +767,13 @@
             `).join('');
             // Remove focus from any element after click to restore scrolling
             setTimeout(blurActiveElement, 0);
+        }
+        
         // Remove focus from any element to restore scrolling
         function blurActiveElement() {
             if (document.activeElement && typeof document.activeElement.blur === 'function') {
                 document.activeElement.blur();
             }
-        }
         }
         
         function editFavorite(id) {
@@ -660,6 +783,7 @@
             editingId = id;
             document.getElementById('edit-title').value = favorite.title;
             document.getElementById('edit-url').value = favorite.url;
+            document.getElementById('edit-category').value = favorite.category || 'Personal';
             setEditRating(favorite.rating);
             
             document.getElementById('edit-modal').style.display = 'block';
@@ -668,6 +792,7 @@
         async function saveEdit() {
             const title = document.getElementById('edit-title').value.trim();
             const url = document.getElementById('edit-url').value.trim();
+            const category = document.getElementById('edit-category').value;
             if (!title || !url || editRating === 0) {
                 alert('Please fill in all fields and set a rating!');
                 return;
@@ -678,6 +803,7 @@
                     ...favorites[favoriteIndex],
                     title,
                     url,
+                    category,
                     rating: editRating
                 };
                 await saveFavoriteToCloud(updated);
